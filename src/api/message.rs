@@ -1,15 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MessagesResponse {
-    anchor: u32,
+    anchor: Option<u32>,
     found_newest: bool,
     found_oldest: bool,
     found_anchor: bool,
-    messages: Vec<Message>
+    messages: Vec<Message>,
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Message {
@@ -21,5 +19,5 @@ pub struct Message {
     sender_id: u32,
     stream_id: u32,
     subject: String,
-    timestamp: u64
+    timestamp: u64,
 }

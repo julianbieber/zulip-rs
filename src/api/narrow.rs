@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Narrow {
@@ -12,7 +12,7 @@ impl Narrow {
         Narrow {
             operator: "sender".to_string(),
             operand: user,
-            negated
+            negated,
         }
     }
 
@@ -20,7 +20,7 @@ impl Narrow {
         Narrow {
             operator: "stream".to_string(),
             operand: stream,
-            negated
+            negated,
         }
     }
 
@@ -28,7 +28,7 @@ impl Narrow {
         Narrow {
             operator: "search".to_string(),
             operand: keyword,
-            negated
+            negated,
         }
     }
 
@@ -36,7 +36,7 @@ impl Narrow {
         Narrow {
             operator: "pm-with".to_string(),
             operand: users.join(","),
-            negated
+            negated,
         }
     }
 
@@ -44,7 +44,7 @@ impl Narrow {
         Narrow {
             operator: "near".to_string(),
             operand: id,
-            negated: false
+            negated: false,
         }
     }
 
@@ -52,7 +52,7 @@ impl Narrow {
         Narrow {
             operator: "id".to_string(),
             operand: id,
-            negated
+            negated,
         }
     }
 
@@ -60,7 +60,7 @@ impl Narrow {
         Narrow {
             operator: "streams".to_string(),
             operand: "public".to_string(),
-            negated
+            negated,
         }
     }
 
@@ -70,12 +70,12 @@ impl Narrow {
             IsWords::MENTIONED => "mentioned".to_string(),
             IsWords::STARRED => "starred".to_string(),
             IsWords::UNREAD => "unread".to_string(),
-            IsWords::PRIVATE => "private".to_string()
+            IsWords::PRIVATE => "private".to_string(),
         };
         Narrow {
             operator: "is".to_string(),
             operand,
-            negated
+            negated,
         }
     }
 
@@ -83,12 +83,12 @@ impl Narrow {
         let operand = match word {
             HasWords::ATTACHMENT => "attachment".to_string(),
             HasWords::LINK => "link".to_string(),
-            HasWords::IMAGE => "image".to_string()
+            HasWords::IMAGE => "image".to_string(),
         };
         Narrow {
             operator: "has".to_string(),
             operand,
-            negated
+            negated,
         }
     }
 
@@ -96,7 +96,7 @@ impl Narrow {
         Narrow {
             operator: "group-pm-with".to_string(),
             operand: users.join(","),
-            negated
+            negated,
         }
     }
 }
@@ -106,11 +106,11 @@ pub enum IsWords {
     MENTIONED,
     STARRED,
     UNREAD,
-    PRIVATE
+    PRIVATE,
 }
 
 pub enum HasWords {
     LINK,
     IMAGE,
-    ATTACHMENT
+    ATTACHMENT,
 }
