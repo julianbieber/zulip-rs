@@ -3,6 +3,7 @@ use crate::api::narrow::Narrow;
 use failure::Error;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use reqwest::{Client};
+use crate::api::config::ZulipConfig;
 
 #[derive(Debug)]
 pub struct API {
@@ -12,7 +13,7 @@ pub struct API {
     client: Client,
 }
 
-const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
+const _FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
 
 impl API {
     pub fn get_messages(
@@ -25,7 +26,6 @@ impl API {
         let anchor_parameter = anchor
             .map(|a| ("anchor".to_string(), format!("{}", a)))
             .unwrap_or(("use_first_unread_anchor".to_string(), "true".to_string()));
-        let narrow_parameter = utf8_percent_encode(serde_json::to_string(narrows)?.as_str(), FRAGMENT).to_string();
 
         let url = if self.zulip_domain.ends_with("/") {
             format!("{}api/v1/messages", &self.zulip_domain)
@@ -33,7 +33,7 @@ impl API {
             format!("{}/api/v1/messages", &self.zulip_domain)
         };
 
-        let response_string = self
+        let response = self
             .client
             .get(url.as_str())
             .query(&[
@@ -44,11 +44,7 @@ impl API {
             ])
             .basic_auth(self.user.as_str(), Some(self.pass.as_str()))
             .send()?
-            .text()?;
-            //.json()?;
-
-        println!("{}", response_string);
-        let response: MessagesResponse = serde_json::from_str(response_string.as_str())?;
+            .json()?;
         Ok(response)
     }
 
@@ -59,5 +55,9 @@ impl API {
             pass,
             client: Client::new(),
         }
+    }
+
+    pub fn from_config(config: &ZulipConfig) -> API {
+        API::new(config.domain.clone(), config.user.clone(), config.password.clone())
     }
 }
