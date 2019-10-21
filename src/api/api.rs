@@ -7,6 +7,7 @@ use failure::Error;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use reqwest::{Client};
 use crate::api::errors::ZulipApiError;
+use std::panic::resume_unwind;
 
 #[derive(Debug)]
 pub struct API {
@@ -49,7 +50,7 @@ impl API {
 
     pub fn post_message(&self, stream: &str, topic: &str, message: &str) -> Result<PostResponse, Error> {
         let url = self.build_url("api/v1/messages");
-        let response = self.client
+        let response: InternalPostResponse = self.client
             .post(url.as_str())
             .header("Content-Type", "application/x-www-form-urlencoded")
             .basic_auth(self.user.as_str(), Some(self.pass.as_str()))
@@ -60,10 +61,26 @@ impl API {
                 format!("content={}", message),
             ].join("&"))
             .send()?
-            .json::<InternalPostResponse>()?;
+            .json()?;
 
         if response.result == "success" {
             Ok(PostResponse{ id: response.id})
+        } else {
+            Err(Error::from(ZulipApiError::FailedToPostMessage {message: response.msg}))
+        }
+    }
+
+    pub fn mute(&self, stream: &str, topic: &str) -> Result<(), Error> {
+        let response : InternalMuteResponse= self.client.patch(self.build_url("api/v1/users/me/subscriptions/muted_topics").as_str())
+            .basic_auth(self.user.as_str(), Some(self.pass.as_str()))
+            .body([
+                format!("stream={}", stream),
+                format!("topic={}", topic),
+                "op=add".to_string()
+            ].join("&")).send()?
+            .json()?;
+        if response.result == "success" {
+            Ok(())
         } else {
             Err(Error::from(ZulipApiError::FailedToPostMessage {message: response.msg}))
         }
@@ -94,6 +111,12 @@ impl API {
 #[derive(Debug, Serialize, Deserialize)]
 struct InternalPostResponse {
     id: u32,
+    msg: String,
+    result: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct InternalMuteResponse {
     msg: String,
     result: String
 }
