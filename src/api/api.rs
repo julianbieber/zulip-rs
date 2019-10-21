@@ -8,6 +8,7 @@ use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use reqwest::{Client};
 use crate::api::errors::ZulipApiError;
 use std::panic::resume_unwind;
+use crate::api::queue_api::Queue;
 
 #[derive(Debug)]
 pub struct API {
@@ -86,6 +87,31 @@ impl API {
         }
     }
 
+    pub fn create_queue(&self, all_public_streams: bool, narrows: Vec<Narrow>) -> Result<Queue, Error> {
+        let url = self.build_url("api/v1/register");
+        let response: InternalRegisterQueueResponse = self.client
+            .post(url.as_str()).header("Content-Type", "application/x-www-form-urlencoded")
+            .basic_auth(self.user.as_str(), Some(self.pass.as_str()))
+            .body([
+                "event_types=[\"message\"]".to_string(),
+                if all_public_streams {
+                    "all_public_streams=true".to_string()
+                } else {
+                    "all_public_streams=false".to_string()
+                },
+                serde_json::to_string(narrows)?
+            ].join("&")).send()?.json()?;
+
+        if response.result == "success" {
+            Ok(Queue{
+                id: response.queue_id,
+                last_event_id: response.last_event_id
+            })
+        } else {
+            Err(Error::from(ZulipApiError::FailedToPostMessage {message: response.msg}))
+        }
+    }
+
     pub fn new(zulip_domain: String, user: String, pass: String) -> API {
         API {
             zulip_domain,
@@ -118,5 +144,13 @@ struct InternalPostResponse {
 #[derive(Debug, Serialize, Deserialize)]
 struct InternalMuteResponse {
     msg: String,
+    result: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct InternalRegisterQueueResponse {
+    last_event_id: i32,
+    msg: String,
+    queue_id: String,
     result: String
 }
