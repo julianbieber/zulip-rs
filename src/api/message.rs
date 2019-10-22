@@ -22,6 +22,12 @@ pub struct Message {
     pub timestamp: u64,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MessageEvent {
+    pub id: i32,
+    pub message: Message
+}
+
 #[derive(Debug)]
 pub struct PostResponse {
     pub id: u32

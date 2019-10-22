@@ -1,4 +1,4 @@
-use crate::api::message::{MessagesResponse, PostResponse, Message};
+use crate::api::message::{MessagesResponse, PostResponse, Message, MessageEvent};
 use crate::api::narrow::Narrow;
 use crate::api::config::ZulipConfig;
 
@@ -111,7 +111,7 @@ impl API {
         }
     }
 
-    pub fn get_queued_messages(&self, queue: &Queue) -> Result<Vec<Message>, Error> {
+    pub fn get_queued_messages(&self, queue: &mut Queue) -> Result<Vec<Message>, Error> {
         let url = self.build_url("api/v1/events");
 
         let response: MessageQueueResponse = self.client
@@ -123,8 +123,10 @@ impl API {
             ]).send()?
             .json()?;
 
+        let highest = response.events.iter().map(|e| e.id).max().unwrap_or(queue.last_event_id);
+        queue.last_event_id = highest;
         if response.result == "success" {
-            Ok(response.events)
+            Ok(response.events.into_iter().map(|e| e.message).collect())
         } else {
             Err(Error::from(ZulipApiError::FailedToPostMessage {message: response.msg}))
         }
@@ -177,5 +179,5 @@ struct InternalRegisterQueueResponse {
 struct MessageQueueResponse {
     result: String,
     msg: String,
-    events: Vec<Message>
+    events: Vec<MessageEvent>
 }
