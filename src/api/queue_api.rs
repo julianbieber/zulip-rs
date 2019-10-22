@@ -1,7 +1,5 @@
-use crate::api::narrow::Narrow;
-use failure::Error;
 
 pub struct Queue {
-    id: String,
-    last_event_id: i32
+    pub id: String,
+    pub last_event_id: i32
 }

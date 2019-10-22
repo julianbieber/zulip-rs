@@ -1,4 +1,4 @@
-use crate::api::message::{MessagesResponse, PostResponse};
+use crate::api::message::{MessagesResponse, PostResponse, Message};
 use crate::api::narrow::Narrow;
 use crate::api::config::ZulipConfig;
 
@@ -7,7 +7,6 @@ use failure::Error;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use reqwest::{Client};
 use crate::api::errors::ZulipApiError;
-use std::panic::resume_unwind;
 use crate::api::queue_api::Queue;
 
 #[derive(Debug)]
@@ -87,7 +86,7 @@ impl API {
         }
     }
 
-    pub fn create_queue(&self, all_public_streams: bool, narrows: Vec<Narrow>) -> Result<Queue, Error> {
+    pub fn create_queue(&self, all_public_streams: bool, narrows: &[Narrow]) -> Result<Queue, Error> {
         let url = self.build_url("api/v1/register");
         let response: InternalRegisterQueueResponse = self.client
             .post(url.as_str()).header("Content-Type", "application/x-www-form-urlencoded")
@@ -107,6 +106,25 @@ impl API {
                 id: response.queue_id,
                 last_event_id: response.last_event_id
             })
+        } else {
+            Err(Error::from(ZulipApiError::FailedToPostMessage {message: response.msg}))
+        }
+    }
+
+    pub fn get_queued_messages(&self, queue: &Queue) -> Result<Vec<Message>, Error> {
+        let url = self.build_url("api/v1/events");
+
+        let response: MessageQueueResponse = self.client
+            .get(url.as_str())
+            .basic_auth(self.user.as_str(), Some(self.pass.as_str()))
+            .query(&[
+                ("queue_id", queue.id.as_str()),
+                ("last_event_id", format!("{}", queue.last_event_id).as_str())
+            ]).send()?
+            .json()?;
+
+        if response.result == "success" {
+            Ok(response.events)
         } else {
             Err(Error::from(ZulipApiError::FailedToPostMessage {message: response.msg}))
         }
@@ -153,4 +171,11 @@ struct InternalRegisterQueueResponse {
     msg: String,
     queue_id: String,
     result: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct MessageQueueResponse {
+    result: String,
+    msg: String,
+    events: Vec<Message>
 }
