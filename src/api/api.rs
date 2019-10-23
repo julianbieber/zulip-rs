@@ -1,4 +1,4 @@
-use crate::api::message::{MessagesResponse, PostResponse};
+use crate::api::message::{MessagesResponse, PostResponse, Message, MessageEvent};
 use crate::api::narrow::Narrow;
 use crate::api::config::ZulipConfig;
 
@@ -7,7 +7,7 @@ use failure::Error;
 use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use reqwest::{Client};
 use crate::api::errors::ZulipApiError;
-use std::panic::resume_unwind;
+use crate::api::queue_api::Queue;
 
 #[derive(Debug)]
 pub struct API {
@@ -86,6 +86,52 @@ impl API {
         }
     }
 
+    pub fn create_queue(&self, all_public_streams: bool, narrows: &[Narrow]) -> Result<Queue, Error> {
+        let url = self.build_url("api/v1/register");
+        let response: InternalRegisterQueueResponse = self.client
+            .post(url.as_str()).header("Content-Type", "application/x-www-form-urlencoded")
+            .basic_auth(self.user.as_str(), Some(self.pass.as_str()))
+            .body([
+                "event_types=[\"message\"]".to_string(),
+                if all_public_streams {
+                    "all_public_streams=true".to_string()
+                } else {
+                    "all_public_streams=false".to_string()
+                },
+                serde_json::to_string(narrows)?
+            ].join("&")).send()?.json()?;
+
+        if response.result == "success" {
+            Ok(Queue{
+                id: response.queue_id,
+                last_event_id: response.last_event_id
+            })
+        } else {
+            Err(Error::from(ZulipApiError::FailedToPostMessage {message: response.msg}))
+        }
+    }
+
+    pub fn get_queued_messages(&self, queue: &mut Queue) -> Result<Vec<Message>, Error> {
+        let url = self.build_url("api/v1/events");
+
+        let response: MessageQueueResponse = self.client
+            .get(url.as_str())
+            .basic_auth(self.user.as_str(), Some(self.pass.as_str()))
+            .query(&[
+                ("queue_id", queue.id.as_str()),
+                ("last_event_id", format!("{}", queue.last_event_id).as_str())
+            ]).send()?
+            .json()?;
+
+        let highest = response.events.iter().map(|e| e.id).max().unwrap_or(queue.last_event_id);
+        queue.last_event_id = highest;
+        if response.result == "success" {
+            Ok(response.events.into_iter().map(|e| e.message).collect())
+        } else {
+            Err(Error::from(ZulipApiError::FailedToPostMessage {message: response.msg}))
+        }
+    }
+
     pub fn new(zulip_domain: String, user: String, pass: String) -> API {
         API {
             zulip_domain,
@@ -119,4 +165,19 @@ struct InternalPostResponse {
 struct InternalMuteResponse {
     msg: String,
     result: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct InternalRegisterQueueResponse {
+    last_event_id: i32,
+    msg: String,
+    queue_id: String,
+    result: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct MessageQueueResponse {
+    result: String,
+    msg: String,
+    events: Vec<MessageEvent>
 }
