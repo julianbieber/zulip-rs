@@ -12,7 +12,7 @@ pub struct ZulipConfig {
 }
 
 lazy_static! {
-    pub static ref ZULIP_CONFIG: Result<ZulipConfig, Error> = ZulipConfig::from_file(dirs::home_dir().unwrap_or(Path::new(".").to_path_buf()).join(Path::new(".zulip_rs/config.toml")));
+    pub static ref ZULIP_CONFIG_PATH: PathBuf = dirs::home_dir().unwrap_or(Path::new(".").to_path_buf()).join(Path::new(".zulip_rs/config.toml"));
 }
 
 impl ZulipConfig {

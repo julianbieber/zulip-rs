@@ -11,7 +11,7 @@ mod tests {
 
     #[test]
     fn test_post_and_get_messages() {
-        let api = API::from_config(ZULIP_CONFIG.as_ref().expect("Failed to read config"));
+        let api = API::from_config(&ZulipConfig::from_file(ZULIP_CONFIG_PATH.to_path_buf()).expect("Failed to read config"));
 
         let posted = api.post_message(STREAM, TOPIC, "test_post_and_get_messages").expect("Failed to post messages");
 
@@ -25,7 +25,7 @@ mod tests {
     #[test]
     fn subscribe_to_messages() {
         let message = "this message should appear in a queue";
-        let api = API::from_config(ZULIP_CONFIG.as_ref().expect("Failed to read config"));
+        let api = API::from_config(&ZulipConfig::from_file(ZULIP_CONFIG_PATH.to_path_buf()).expect("Failed to read config"));
         let mut queue = api.create_queue(true, &[]).expect("Failed to create queue");
         api.post_message(STREAM, TOPIC, message).expect("Failed to post message");
         let messages = api.get_queued_messages(&mut queue).expect("Failed to retrieve queued messages");
