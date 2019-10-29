@@ -24,7 +24,7 @@ impl API {
         &self,
         num_before: u32,
         num_after: u32,
-        anchor: Option<u32>,
+        anchor: Option<i64>,
         narrows: &[Narrow],
     ) -> Result<MessagesResponse, Error> {
         let anchor_parameter = anchor
@@ -156,7 +156,7 @@ impl API {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct InternalPostResponse {
-    id: u32,
+    id: i64,
     msg: String,
     result: String
 }
@@ -169,7 +169,7 @@ struct InternalMuteResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct InternalRegisterQueueResponse {
-    last_event_id: i32,
+    last_event_id: i64,
     msg: String,
     queue_id: String,
     result: String
