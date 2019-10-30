@@ -33,7 +33,7 @@ impl API {
 
         let url = self.build_url("api/v1/messages");
 
-        let response = self
+        let response: InternalMessagesResponse = self
             .client
             .get(url.as_str())
             .query(&[
@@ -45,7 +45,18 @@ impl API {
             .basic_auth(self.user.as_str(), Some(self.pass.as_str()))
             .send()?
             .json()?;
-        Ok(response)
+
+        if response.result == "success" {
+            Ok(MessagesResponse{
+                messages: response.messages.unwrap_or_default(),
+                anchor: response.anchor,
+                found_anchor: response.found_anchor,
+                found_newest: response.found_newest,
+                found_oldest: response.found_oldest
+            })
+        } else {
+            Err(Error::from(ZulipApiError::ZulipError {message: response.msg}))
+        }
     }
 
     pub fn post_message(&self, stream: &str, topic: &str, message: &str) -> Result<PostResponse, Error> {
@@ -66,7 +77,7 @@ impl API {
         if response.result == "success" {
             Ok(PostResponse{ id: response.id})
         } else {
-            Err(Error::from(ZulipApiError::FailedToPostMessage {message: response.msg}))
+            Err(Error::from(ZulipApiError::ZulipError {message: response.msg}))
         }
     }
 
@@ -82,7 +93,7 @@ impl API {
         if response.result == "success" {
             Ok(())
         } else {
-            Err(Error::from(ZulipApiError::FailedToPostMessage {message: response.msg}))
+            Err(Error::from(ZulipApiError::ZulipError {message: response.msg}))
         }
     }
 
@@ -107,7 +118,7 @@ impl API {
                 last_event_id: response.last_event_id
             })
         } else {
-            Err(Error::from(ZulipApiError::FailedToPostMessage {message: response.msg}))
+            Err(Error::from(ZulipApiError::ZulipError {message: response.msg}))
         }
     }
 
@@ -128,7 +139,7 @@ impl API {
         if response.result == "success" {
             Ok(response.events.into_iter().map(|e| e.message).collect())
         } else {
-            Err(Error::from(ZulipApiError::FailedToPostMessage {message: response.msg}))
+            Err(Error::from(ZulipApiError::ZulipError {message: response.msg}))
         }
     }
 
@@ -180,4 +191,15 @@ struct MessageQueueResponse {
     result: String,
     msg: String,
     events: Vec<MessageEvent>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct InternalMessagesResponse {
+    result: String,
+    msg: String,
+    anchor: Option<i64>,
+    found_newest: Option<bool>,
+    found_oldest: Option<bool>,
+    found_anchor: Option<bool>,
+    messages: Option<Vec<Message>>,
 }
