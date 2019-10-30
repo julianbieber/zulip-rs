@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MessagesResponse {
     pub anchor: Option<i64>,
-    pub found_newest: bool,
-    pub found_oldest: bool,
-    pub found_anchor: bool,
+    pub found_newest: Option<bool>,
+    pub found_oldest: Option<bool>,
+    pub found_anchor: Option<bool>,
     pub messages: Vec<Message>,
 }
 
