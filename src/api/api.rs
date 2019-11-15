@@ -4,10 +4,11 @@ use crate::api::config::ZulipConfig;
 
 use serde::{Deserialize, Serialize};
 use failure::Error;
-use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 use reqwest::{Client};
 use crate::api::errors::ZulipApiError;
 use crate::api::queue_api::Queue;
+use crate::api::errors::ZulipApiError::ZulipError;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct API {
@@ -16,8 +17,6 @@ pub struct API {
     pass: String,
     client: Client,
 }
-
-const _FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
 
 impl API {
     pub fn get_messages(
@@ -143,6 +142,56 @@ impl API {
         }
     }
 
+    pub fn create_stream(&self, name: &str, announce: bool) -> Result<i64, Error> {
+        let url = self.build_url("/api/v1/users/me/subscriptions");
+
+
+        let mut form = HashMap::new();
+        form.insert("subscriptions", format!("[{{\"name\":\"{}\",\"description\":\"\"}}]", name));
+        form.insert("announce", format!("{}", announce));
+
+        let response: InternalCreateStreamResponse = self.client
+            .post(url.as_str())
+            .basic_auth(self.user.as_str(), Some(self.pass.as_str()))
+            .form(&form)
+            .send()?
+            .json()?;
+
+        if response.result == "success" {
+            let stream_id = self.get_stream_id(name)?;
+            Ok(stream_id)
+        } else {
+            Err(Error::from(ZulipApiError::ZulipError {message: response.msg}))
+        }
+
+    }
+
+    pub fn get_stream_id(&self, stream: &str) -> Result<i64, Error> {
+        let url = self.build_url("/api/v1/get_stream_id");
+
+        let response: InternalGetStreamIdResponse = self.client.get(url.as_str()).basic_auth(self.user.as_str(), Some(self.pass.as_str())).query(&[
+            ("stream", stream)
+        ]).send()?.json()?;
+
+        if response.result == "success" && response.stream_id.is_some() {
+            Ok(response.stream_id.unwrap())
+        } else {
+            Err(Error::from(ZulipApiError::ZulipError {message: response.msg}))
+        }
+    }
+
+    pub fn delete_stream(&self, stream_id: i64) -> Result<(), Error> {
+        let url = format!("{}/{}", self.build_url("/api/v1/streams/"), stream_id);
+
+        let response: InternalDeleteStreamResponse = self.client.delete(url.as_str()).basic_auth(self.user.as_str(), Some(self.pass.as_str())).send()?.json()?;
+
+        if response.result == "success" {
+            Ok(())
+        } else {
+            Err(Error::from(ZulipError {message: response.msg}))
+        }
+    }
+
     pub fn new(zulip_domain: String, user: String, pass: String) -> API {
         API {
             zulip_domain,
@@ -202,4 +251,23 @@ struct InternalMessagesResponse {
     found_oldest: Option<bool>,
     found_anchor: Option<bool>,
     messages: Option<Vec<Message>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct InternalCreateStreamResponse {
+    result: String,
+    msg: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct InternalGetStreamIdResponse {
+    result: String,
+    msg: String,
+    stream_id: Option<i64>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct InternalDeleteStreamResponse {
+    result: String,
+    msg: String
 }

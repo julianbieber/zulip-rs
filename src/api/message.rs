@@ -25,10 +25,10 @@ pub struct Message {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MessageEvent {
     pub id: i64,
-    pub message: Message
+    pub message: Message,
 }
 
 #[derive(Debug)]
 pub struct PostResponse {
-    pub id: i64
+    pub id: i64,
 }

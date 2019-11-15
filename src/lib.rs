@@ -32,4 +32,11 @@ mod tests {
         assert!(messages.len() >= 1, "Must receive at least the posted message");
         assert_eq!(messages.last().unwrap().content, message);
     }
+
+    #[test]
+    fn work_with_streams() {
+        let api = API::from_config(&ZulipConfig::from_file(ZULIP_CONFIG_PATH.to_path_buf()).expect("Failed to read config"));
+
+        api.create_stream("test zulip-rs stream", false).expect("Failed to create stream");
+    }
 }
