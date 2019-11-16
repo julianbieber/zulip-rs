@@ -67,20 +67,16 @@ impl API {
         message: &str,
     ) -> Result<PostResponse, Error> {
         let url = self.build_url("api/v1/messages");
+        let mut form = HashMap::new();
+        form.insert("type", "stream");
+        form.insert("to", stream);
+        form.insert("subject", topic);
+        form.insert("content", message);
         let response: InternalPostResponse = self
             .client
             .post(url.as_str())
-            .header("Content-Type", "application/x-www-form-urlencoded")
             .basic_auth(self.user.as_str(), Some(self.pass.as_str()))
-            .body(
-                [
-                    format!("type=stream"),
-                    format!("to={}", stream),
-                    format!("subject={}", topic),
-                    format!("content={}", message),
-                ]
-                .join("&"),
-            )
+            .form(&form)
             .send()?
             .json()?;
 
@@ -94,6 +90,9 @@ impl API {
     }
 
     pub fn mute(&self, stream: &str, topic: &str) -> Result<(), Error> {
+        let mut form = HashMap::new();
+        form.insert("stream", stream);
+        form.insert("topic", topic);
         let response: InternalMuteResponse = self
             .client
             .patch(
@@ -101,14 +100,7 @@ impl API {
                     .as_str(),
             )
             .basic_auth(self.user.as_str(), Some(self.pass.as_str()))
-            .body(
-                [
-                    format!("stream={}", stream),
-                    format!("topic={}", topic),
-                    "op=add".to_string(),
-                ]
-                .join("&"),
-            )
+            .form(&form)
             .send()?
             .json()?;
         if response.result == "success" {
@@ -126,23 +118,22 @@ impl API {
         narrows: &[Narrow],
     ) -> Result<Queue, Error> {
         let url = self.build_url("api/v1/register");
+        let mut form = HashMap::new();
+        form.insert("event_types", "[\"message\"]".to_string());
+        form.insert(
+            "all_public_streams",
+            if all_public_streams {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            },
+        );
+        form.insert("narrows", serde_json::to_string(narrows)?);
         let response: InternalRegisterQueueResponse = self
             .client
             .post(url.as_str())
-            .header("Content-Type", "application/x-www-form-urlencoded")
             .basic_auth(self.user.as_str(), Some(self.pass.as_str()))
-            .body(
-                [
-                    "event_types=[\"message\"]".to_string(),
-                    if all_public_streams {
-                        "all_public_streams=true".to_string()
-                    } else {
-                        "all_public_streams=false".to_string()
-                    },
-                    serde_json::to_string(narrows)?,
-                ]
-                .join("&"),
-            )
+            .form(&form)
             .send()?
             .json()?;
 
